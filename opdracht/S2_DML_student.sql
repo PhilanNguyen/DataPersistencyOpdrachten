@@ -30,35 +30,55 @@
 -- S2.1. Vier-daagse cursussen
 --
 -- Geef code en omschrijving van alle cursussen die precies vier dagen duren.
--- DROP VIEW IF EXISTS s2_1; CREATE OR REPLACE VIEW s2_1 AS                                                     -- [TEST]
+DROP VIEW IF EXISTS s2_1; CREATE OR REPLACE VIEW s2_1 AS                                                     -- [TEST]
+    SELECT code, omschrijving FROM cursussen WHERE lengte = 4;
 
+"S02"	"Introductiecursus SQL"	"ALG"	4
+"JAV"	"Java voor Oracle ontwikkelaars"	"BLD"	4
+"GEN"	"Systeemgeneratie"	"DSG"	4
 
 -- S2.2. Medewerkersoverzicht
 --
 -- Geef alle informatie van alle medewerkers, gesorteerd op functie,
 -- en per functie op leeftijd (van jong naar oud).
--- DROP VIEW IF EXISTS s2_2; CREATE OR REPLACE VIEW s2_2 AS                                                     -- [TEST]
+DROP VIEW IF EXISTS s2_2; CREATE OR REPLACE VIEW s2_2 AS                                                     -- [TEST]
 
+SELECT * FROM medewerkers
+ORDER BY functie, DATE_PART('year', CURRENT_DATE) - DATE_PART('year', gbdatum) ASC;
 
 -- S2.3. Door het land
 --
 -- Welke cursussen zijn in Utrecht en/of in Maastricht uitgevoerd? Geef
 -- code en begindatum.
--- DROP VIEW IF EXISTS s2_3; CREATE OR REPLACE VIEW s2_3 AS                                                     -- [TEST]
+DROP VIEW IF EXISTS s2_3; CREATE OR REPLACE VIEW s2_3 AS                                                     -- [TEST]
+SELECT cursus, begindatum FROM uitvoeringen WHERE locatie = 'UTRECHT' OR locatie = 'DE MEERN'
 
+    "S02"	"2019-04-12"
+    "OAG"	"2019-08-10"
+    "S02"	"2019-12-13"
+    "XML"	"2020-02-03"
+    "JAV"	"2020-02-01"
+    "PLS"	"2020-09-11"
+    "OAG"	"2020-09-27"
+    "PRO"	"2021-02-19"
+    "RSO"	"2021-02-24"
 
 -- S2.4. Namen
 --
 -- Geef de naam en voorletters van alle medewerkers, behalve van R. Jansen.
--- DROP VIEW IF EXISTS s2_4; CREATE OR REPLACE VIEW s2_4 AS                                                     -- [TEST]
-
+DROP VIEW IF EXISTS s2_4; CREATE OR REPLACE VIEW s2_4 AS                                                     -- [TEST]
+SELECT naam, voorl FROM medewerkers EXCEPT SELECT naam, voorl FROM medewerkers WHERE naam = 'JANSEN' AND voorl = 'R'
 
 -- S2.5. Nieuwe SQL-cursus
 --
 -- Er wordt een nieuwe uitvoering gepland voor cursus S02, en wel op de
 -- komende 2 maart. De cursus wordt gegeven in Leerdam door Nick Smit.
 -- Voeg deze gegevens toe.
-INSERT
+
+    INSERT INTO uitvoeringen (cursus, begindatum, docent, locatie)
+VALUES ('S02', '03-02-2025', (SELECT mnr FROM medewerkers WHERE naam = 'SMIT'), 'LEERDAM');
+
+    INSERT
 ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
 
 
@@ -66,6 +86,9 @@ ON CONFLICT DO NOTHING;                                                         
 --
 -- Neem één van je collega-studenten aan als stagiair ('STAGIAIR') en
 -- voer zijn of haar gegevens in. Kies een personeelnummer boven de 8000.
+INSERT INTO medewerkers (mnr, naam, voorl, functie, chef, gbdatum, maandsal, comm, afd)
+VALUES (8029, 'DE MOS', 'W', 'STAGIAIR', 7902, '12-12-2004', 800, NULL, 20);
+
 INSERT
 ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
 
@@ -74,6 +97,10 @@ ON CONFLICT DO NOTHING;                                                         
 --
 -- We breiden het salarissysteem uit naar zes schalen. Voer een extra schaal in voor mensen die
 -- tussen de 3001 en 4000 euro verdienen. Zij krijgen een toelage van 500 euro.
+INSERT INTO schalen (snr, ondergrens, bovengrens, toelage)
+VALUES (6, 3001, 4000, 500);
+
+
 INSERT
 ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
 
@@ -83,12 +110,25 @@ ON CONFLICT DO NOTHING;                                                         
 -- Er wordt een nieuwe 6-daagse cursus 'Data & Persistency' in het programma opgenomen.
 -- Voeg deze cursus met code 'D&P' toe, maak twee uitvoeringen in Leerdam en schrijf drie
 -- mensen in.
+
 INSERT
+INTO cursussen (code, omschrijving, type, lengte)
+VALUES ('D&P', 'Data & Persistency', 'ALG', 6)
 ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
+
 INSERT
+INTO uitvoeringen (cursus, begindatum, docent, locatie)
+VALUES ('D&P', '12-04-2019', 7902, 'LEERDAM'),
+       ('D&P', '10-08-2019', 7566, 'LEERDAM')
 ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
+
 INSERT
+INTO inschrijvingen (cursist, cursus, begindatum, evaluatie)
+VALUES (7499, 'D&P', '12-04-2019', 4),
+       (7934, 'D&P', '12-04-2019', 5),
+       (7698, 'D&P', '12-04-2019', 4)
 ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
+
 INSERT
 ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
 INSERT
@@ -102,6 +142,12 @@ ON CONFLICT DO NOTHING;                                                         
 -- De medewerkers van de afdeling VERKOOP krijgen een salarisverhoging
 -- van 5.5%, behalve de manager van de afdeling, deze krijgt namelijk meer: 7%.
 -- Voer deze verhogingen door.
+UPDATE medewerkers
+SET maandsal = maandsal * 1.07 WHERE afd = (SELECT anr FROM afdelingen WHERE naam = 'VERKOOP') AND functie ='MANAGER';
+
+UPDATE medewerkers
+SET maandsal = maandsal * 1.055 WHERE afd = (SELECT anr FROM afdelingen WHERE naam = 'VERKOOP') AND functie !='MANAGER';
+
 
 
 -- S2.10. Concurrent
@@ -111,18 +157,37 @@ ON CONFLICT DO NOTHING;                                                         
 
 -- Zijn collega Alders heeft ook plannen om te vertrekken. Verwijder ook zijn gegevens.
 -- Waarom lukt dit (niet)?
+DELETE FROM medewerkers
+    WHERE naam = 'MARTENS';
 
+DELETE FROM medewerkers
+WHERE naam = 'ALDERS';
 
+-- dat komt omdat de medewerker ALDERS een foreign key heeft in inschrijvingen wat
+-- ervoor zorgt dat hij niet verwijdert kan worden. Je kan het verwijderen door eerst de inschrijving verwijderen.
+
+ERROR:  Key (mnr)=(7499) is still referenced from table "inschrijvingen".update or delete on table "medewerkers" violates foreign key constraint "i_cursist_fk" on table "inschrijvingen"
+
+ERROR:  update or delete on table "medewerkers" violates foreign key constraint "i_cursist_fk" on table "inschrijvingen"
+    SQL state: 23503
+    Detail: Key (mnr)=(7499) is still referenced from table "inschrijvingen".;
 -- S2.11. Nieuwe afdeling
 --
 -- Je wordt hoofd van de nieuwe afdeling 'FINANCIEN' te Leerdam,
 -- onder de hoede van De Koning. Kies een personeelnummer boven de 8000.
 -- Zorg voor de juiste invoer van deze gegevens.
 INSERT
-ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
+INTO medewerkers (mnr, naam, voorl, functie, chef, gbdatum, maandsal, comm, afd)
+VALUES (8111, 'NGUYEN', 'P', 'MANAGER', 7839, '03-16-2004', 8000, NULL, null)
+    ON CONFLICT DO NOTHING;
 
 INSERT
-ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
+INTO afdelingen (anr, naam, locatie, hoofd)
+VALUES (50, 'FINANCIEN', 'LEERDAM', null)
+    ON CONFLICT DO NOTHING;                                                                                         -- [TEST]
+
+UPDATE medewerkers SET afd = 50 WHERE mnr = 8111;
+UPDATE afdelingen SET hoofd = 8111 WHERE anr = 50;                                                                                     -- [TEST]
 
 
 

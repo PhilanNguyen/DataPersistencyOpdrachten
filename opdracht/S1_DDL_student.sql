@@ -35,6 +35,21 @@
 -- geaccepteerd. Test deze regel en neem de gegooide foutmelding op als
 -- commentaar in de uitwerking.
 
+ALTER TABLE medewerkers
+    ADD geslacht varchar(255);
+ALTER TABLE medewerkers
+    ADD CONSTRAINT m_geslacht_chk CHECK (geslacht in ('M', 'V'));
+
+--Query voor foutmelding:
+--UPDATE medewerkers
+--SET geslacht = 'VO'
+--WHERE mnr = 7369;
+
+--ERROR:  Failing row contains (7369, SMIT, N, TRAINER, 7902, 1985-12-17, 800.00, null, 20, VO).new row for relation "medewerkers" violates check constraint "m_geslacht_chk"
+--ERROR:  new row for relation "medewerkers" violates check constraint "m_geslacht_chk"
+--SQL state: 23514
+--Detail: Failing row contains (7369, SMIT, N, TRAINER, 7902, 1985-12-17, 800.00, null, 20, VO).
+
 
 -- S1.2. Nieuwe afdeling
 --
@@ -43,6 +58,21 @@
 -- nieuwe medewerker A DONK aangenomen. Hij krijgt medewerkersnummer 8000
 -- en valt direct onder de directeur.
 -- Voeg de nieuwe afdeling en de nieuwe medewerker toe aan de database.
+
+
+SET DATESTYLE = 'DMY';
+
+INSERT INTO medewerkers (mnr, naam, voorl, functie, chef, gbdatum, maandsal, comm, afd)
+VALUES (8000, 'DONK', 'A', 'MANAGER', 7839, '17-12-1985', 800, NULL, NULL);
+
+INSERT INTO afdelingen (anr, naam, locatie, hoofd)
+VALUES (50, 'ONDERZOEK', 'ZWOLLE', NULL);
+
+UPDATE medewerkers SET afd = 50 WHERE mnr = 8000;
+
+UPDATE afdelingen SET hoofd = 8000 WHERE anr = 50;
+
+
 
 
 -- S1.3. Verbetering op afdelingentabel
@@ -54,6 +84,19 @@
 --      de nieuwe sequence.
 --   c) Op enig moment gaat het mis. De betreffende kolommen zijn te klein voor
 --      nummers van 3 cijfers. Los dit probleem op.
+
+a)  CREATE SEQUENCE afdeling_nummers_sequence
+    START WITH 60
+    INCREMENT BY 10;
+
+
+b)  INSERT INTO afdelingen (anr, naam, locatie, hoofd)
+    VALUES (nextval('afdeling_nummers_sequence'), 'AFDELING', 'AMSTERDAM', 7782),
+           (nextval('afdeling_nummers_sequence'), 'AFDELINGTWEE', 'ROTTERDAM', 7782);
+
+c)  ALTER TABLE afdelingen
+ALTER COLUMN anr
+TYPE numeric(3)
 
 
 -- S1.4. Adressen
@@ -69,6 +112,21 @@
 --    telefoon      10 cijfers, uniek
 --    med_mnr       FK, verplicht
 
+CREATE TABLE adressen
+(
+    postcode     CHAR(6) NOT NULL,
+    huisnummer   INTEGER NOT NULL,
+    ingangsdatum DATE NOT NULL,
+    einddatum    DATE CHECK (einddatum > ingangsdatum),
+    telefoon     NUMERIC(10) UNIQUE,
+    med_mnr      INTEGER NOT NULL CONSTRAINT fk_medewerkers REFERENCES medewerkers (mnr),
+    CONSTRAINT pk_adressen PRIMARY KEY (postcode, huisnummer, ingangsdatum),
+    CONSTRAINT postcode_check CHECK (postcode ~ '^[0-9]{4}[A-Z]{2}$')
+    );
+
+INSERT INTO adressen
+VALUES ('1234AB',12,'12-04-2019','12-04-2026',1234567890,8000);
+
 
 -- S1.5. Commissie
 --
@@ -76,11 +134,18 @@
 -- 'VERKOPER' heeft, anders moet de commissie NULL zijn. Schrijf hiervoor een beperkingsregel. Gebruik onderstaande
 -- 'illegale' INSERTs om je beperkingsregel te controleren.
 
+ALTER TABLE medewerkers
+    ADD CONSTRAINT comm_check
+        CHECK ((functie = 'VERKOPER' AND comm IS NOT NULL) OR
+            (functie != 'VERKOPER' AND comm IS NULL));
+
+
 INSERT INTO medewerkers (mnr, naam, voorl, functie, chef, gbdatum, maandsal, comm)
 VALUES (8001, 'MULLER', 'TJ', 'TRAINER', 7566, '1982-08-18', 2000, 500);
 
 INSERT INTO medewerkers (mnr, naam, voorl, functie, chef, gbdatum, maandsal, comm)
 VALUES (8002, 'JANSEN', 'M', 'VERKOPER', 7698, '1981-07-17', 1000, NULL);
+
 
 
 
