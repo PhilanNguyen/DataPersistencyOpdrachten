@@ -39,6 +39,7 @@ AND cursist IN(SELECT cursist FROM inschrijvingen WHERE cursus = 'XML')
 -- Geef de nummers van alle medewerkers die niet aan de afdeling 'OPLEIDINGEN'
 -- zijn verbonden.
 DROP VIEW IF EXISTS s5_2; CREATE OR REPLACE VIEW s5_2 AS                                                     -- [TEST]
+
 SELECT mnr FROM medewerkers WHERE afd !=(SELECT anr FROM afdelingen WHERE naam ='OPLEIDINGEN')
 
 -- S5.3.
